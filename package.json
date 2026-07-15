@@ -1,0 +1,30 @@
+{
+  "name": "pi-usage-hub",
+  "version": "1.0.0",
+  "description": "Usage hub for pi — provider quota/balance registry with cache, /usage-hub panel, and pull API",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "usage",
+    "quota"
+  ],
+  "license": "MIT",
+  "author": "ouzhenkun",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ouzhenkun/pi-usage-hub.git"
+  },
+  "homepage": "https://github.com/ouzhenkun/pi-usage-hub",
+  "bugs": {
+    "url": "https://github.com/ouzhenkun/pi-usage-hub/issues"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
