@@ -101,7 +101,7 @@ Built-in providers are the ones already used and smoke-tested by the author. The
 
 ## Pull API
 
-The hub caches results for 60 seconds and deduplicates concurrent requests. It never pushes footer text: consumers refresh data, read the cached summary, and re-render when notified.
+The hub caches results for 60 seconds and deduplicates concurrent requests. It never pushes footer text: consumers start refreshes without blocking lifecycle events, read the cached summary, and re-render when notified.
 
 | API | Role |
 |-----|------|
@@ -135,14 +135,15 @@ const offUpdated = pi.events.on("pi-usage-hub:updated", () => {
   requestRender?.();
 });
 
-pi.on("session_start", async (_event, ctx) => {
+// Pi awaits lifecycle handlers; refresh in the background and re-render on pi-usage-hub:updated.
+pi.on("session_start", (_event, ctx) => {
   void usageHub?.refresh({ model: ctx.model, force: true });
 });
-pi.on("model_select", async (event) => {
-  await usageHub?.refresh({ model: event.model, force: true });
+pi.on("model_select", (event) => {
+  void usageHub?.refresh({ model: event.model, force: true });
 });
-pi.on("agent_end", async (_event, ctx) => {
-  await usageHub?.refresh({ model: ctx.model, force: true });
+pi.on("agent_end", (_event, ctx) => {
+  void usageHub?.refresh({ model: ctx.model, force: true });
 });
 
 // Inside footer render():
