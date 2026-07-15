@@ -158,7 +158,7 @@ pi.on("session_shutdown", async () => {
 
 ### L2 provider registration
 
-See [`examples/auth-providers.ts`](./examples/auth-providers.ts) for a complete example.
+See [`examples/custom-provider.ts`](./examples/custom-provider.ts) for a self-contained extension that implements and registers a provider. Copy it into `~/.pi/agent/extensions/`, then adapt the endpoint, credentials, response shape, and labels.
 
 ```ts
 pi.events.on("pi-usage-hub:ready", (hub) => hub.register(myProvider));
