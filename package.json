@@ -20,7 +20,8 @@
     "url": "https://github.com/ouzhenkun/pi-usage-hub/issues"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
   },
   "pi": {
     "extensions": [

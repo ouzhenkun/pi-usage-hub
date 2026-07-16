@@ -1,4 +1,5 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { Key, matchesKey } from "@earendil-works/pi-tui";
 import type { UsageProvider, UsageReport } from "../types";
 import { fullReport } from "./format-report";
 import { SessionPanel } from "./session-panel";
@@ -57,7 +58,7 @@ export class UsageWindow {
       this.done();
       return;
     }
-    if (data === "\t") {
+    if (matchesKey(data, Key.tab)) {
       this.mode = this.mode === "quota" ? "session" : "quota";
       if (this.mode === "session") this.session.ensureLoaded();
       if (this.mode === "quota") this.ensureQuotaLoaded?.();
@@ -89,7 +90,7 @@ export class UsageWindow {
     for (const line of content) lines.push(row(line));
     if (this.mode === "quota") {
       lines.push(row());
-      lines.push(row(` ${th.fg("dim", "←→/u switch view · Esc/q close")}`));
+      lines.push(row(` ${th.fg("dim", "Tab switch view · Esc/q close")}`));
     }
     lines.push(th.fg("border", `╰${"─".repeat(innerW)}╯`));
     return lines;

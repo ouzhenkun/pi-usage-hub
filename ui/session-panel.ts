@@ -3,6 +3,7 @@
 // input handling, and rendering so index.ts only wires it into the overlay.
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { Key, matchesKey } from "@earendil-works/pi-tui";
 import {
   collectSessionUsage,
   type ProviderSessionUsage,
@@ -83,8 +84,8 @@ export class SessionPanel {
   /** Handle a key. Returns true if the panel consumed it. */
   handleInput(data: string): boolean {
     // Left/right: switch period tab
-    if (data === "\x1b[C" || data === "\x1b[D") {
-      const delta = data === "\x1b[C" ? 1 : -1;
+    if (matchesKey(data, Key.left) || matchesKey(data, Key.right)) {
+      const delta = matchesKey(data, Key.right) ? 1 : -1;
       this.periodIndex = (this.periodIndex + delta + PERIODS.length) % PERIODS.length;
       this.providerIndex = 0;
       this.expanded.clear();
@@ -93,8 +94,8 @@ export class SessionPanel {
     }
 
     // Up/down: navigate provider rows
-    if (data === "\x1b[A" || data === "\x1b[B") {
-      const delta = data === "\x1b[A" ? -1 : 1;
+    if (matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
+      const delta = matchesKey(data, Key.up) ? -1 : 1;
       const n = this.providers().length;
       if (n > 0) this.providerIndex = (this.providerIndex + delta + n) % n;
       this.requestRender();
@@ -102,7 +103,7 @@ export class SessionPanel {
     }
 
     // Space/Enter: expand selected provider
-    if (data === " " || data === "\r") {
+    if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
       const name = this.providers()[this.providerIndex]?.provider;
       if (name) {
         if (this.expanded.has(name)) this.expanded.delete(name);
