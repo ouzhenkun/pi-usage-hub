@@ -1,5 +1,5 @@
 /**
- * Example: register a custom usage provider through the L2 event API.
+ * Example: register a custom usage provider through the event API.
  *
  * Copy this file into ~/.pi/agent/extensions/ and adapt the endpoint,
  * credentials, response shape, and labels for your provider.

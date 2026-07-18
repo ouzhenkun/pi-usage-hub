@@ -97,7 +97,17 @@ These are companion packages, not npm peer dependencies:
 
 pi-usage-hub only reads those credentials; it does not run their OAuth flows.
 
-Built-in providers are the ones already used and smoke-tested by the author. The provider ecosystem is too broad to cover exhaustively. Add another provider through L2 registration, or fork the package and submit a PR.
+Built-in providers cover the integrations used and smoke-tested by the author. To support another provider, register a custom provider from an extension, or fork the package and submit a PR.
+
+### Add a custom provider
+
+See [`examples/custom-provider.ts`](./examples/custom-provider.ts) for a self-contained extension that implements and registers a provider. Copy it into `~/.pi/agent/extensions/`, then adapt the endpoint, credentials, response shape, and labels.
+
+```ts
+pi.events.on("pi-usage-hub:ready", (hub) => hub.register(myProvider));
+pi.events.emit("pi-usage-hub:register", myProvider);
+pi.events.emit("pi-usage-hub:unregister", { key: "my-relay" });
+```
 
 ## Pull API
 
@@ -155,16 +165,6 @@ pi.on("session_shutdown", async () => {
   offUpdated();
   usageHub = null;
 });
-```
-
-### L2 provider registration
-
-See [`examples/custom-provider.ts`](./examples/custom-provider.ts) for a self-contained extension that implements and registers a provider. Copy it into `~/.pi/agent/extensions/`, then adapt the endpoint, credentials, response shape, and labels.
-
-```ts
-pi.events.on("pi-usage-hub:ready", (hub) => hub.register(myProvider));
-pi.events.emit("pi-usage-hub:register", myProvider);
-pi.events.emit("pi-usage-hub:unregister", { key: "my-relay" });
 ```
 
 ## License
