@@ -10,7 +10,6 @@ export function makeDeepseekProvider(name: string, cfg: DeepseekConfig): UsagePr
     matchProviders: cfg.matchProviders ?? [name, "deepseek"],
     shortLabel: cfg.shortLabel ?? "DS",
     label: cfg.label ?? "DeepSeek",
-    hidden: cfg.hidden,
     detect: () => !!apiKey,
 
     fetchUsage: async (): Promise<UsageReport> => {

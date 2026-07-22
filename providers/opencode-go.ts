@@ -47,7 +47,6 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
     matchProviders: cfg.matchProviders ?? [name, "opencode-go"],
     shortLabel: cfg.shortLabel ?? "OCG",
     label: cfg.label ?? "OpenCode Go",
-    hidden: cfg.hidden,
     detect: () => !!workspaceId && (!!resolveAuth(cfg) || !manual),
 
     fetchUsage: async (): Promise<UsageReport> => {

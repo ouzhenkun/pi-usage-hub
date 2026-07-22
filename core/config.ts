@@ -65,7 +65,6 @@ function parseProviderEntry(
     matchProviders: asStringArray(raw.matchProviders),
     shortLabel: typeof raw.shortLabel === "string" ? raw.shortLabel : undefined,
     label: typeof raw.label === "string" ? raw.label : undefined,
-    hidden: typeof raw.hidden === "boolean" ? raw.hidden : undefined,
   };
 
   switch (type) {

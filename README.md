@@ -70,7 +70,6 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | `name` | no | Instance key; defaults to `type`, then `type-2`, `type-3`, and so on |
 | `matchProviders` | no | Additional `model.provider` values mapped to this entry |
 | `shortLabel` / `label` | no | Override the footer label or panel title |
-| `hidden` | no | Exclude from panel and footer; `/usage-hub login` still works |
 
 ### Provider types
 

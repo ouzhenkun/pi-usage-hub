@@ -294,7 +294,6 @@ export function makeXaiProvider(name: string, cfg: XaiConfig = {}): UsageProvide
     matchProviders: cfg.matchProviders ?? [name, "xai-auth", "xai", "grok-cli"],
     shortLabel: cfg.shortLabel ?? "XAI",
     label: cfg.label ?? "xAI (SuperGrok)",
-    hidden: cfg.hidden,
     detect: () => readStoredCredentials() !== null,
 
     fetchUsage: async (): Promise<UsageReport> => {

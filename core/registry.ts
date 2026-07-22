@@ -31,7 +31,6 @@ export class ProviderRegistry {
 
   detectActive(): UsageProvider[] {
     return this.list().filter(p => {
-      if (p.hidden) return false;
       try {
         return p.detect();
       } catch {
