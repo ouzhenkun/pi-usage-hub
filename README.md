@@ -76,7 +76,7 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | Type | Credentials | Notes | Website |
 |------|-------------|-------|---------|
 | `deepseek` | `apiKey` | Account balance | [deepseek](https://platform.deepseek.com) |
-| `newapi` | `host`, `token`, `userId` | Balance and today's spend; supports multiple instances | [self-hosted - newapi](https://www.newapi.ai)) |
+| `newapi` | `host`, `token`, `userId` | Balance and today's spend; supports multiple instances | [newapi](https://www.newapi.ai)) |
 | `opencode-go` | `workspaceId`; optional `auth` | Uses the configured auth cookie or macOS Chrome | [opencode.ai](https://opencode.ai) |
 | `ark` | optional `cookie`, `csrfToken` | Uses the configured Cookie header or macOS Chrome | [火山引擎](https://console.volcengine.com/ark) |
 | `xai` | — | Reads `auth.json` or `~/.grok/auth.json` | [x.ai/grok](https://x.ai/grok) |
