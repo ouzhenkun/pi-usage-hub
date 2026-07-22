@@ -17,6 +17,8 @@ export interface UsageProvider {
   matchProviders?: string[];
   shortLabel: string;
   label: string;
+  /** If true, excluded from active providers (quota panel and footer). Login still works. */
+  hidden?: boolean;
   detect(): boolean;
   fetchUsage(): Promise<UsageReport>;
   login?(): Promise<boolean>;
@@ -36,6 +38,8 @@ export interface ProviderMeta {
   matchProviders?: string[];
   shortLabel?: string;
   label?: string;
+  /** If true, exclude from active providers (quota panel, footer). Login still works. */
+  hidden?: boolean;
 }
 
 /** Factory input — no type (caller already picked the factory). */

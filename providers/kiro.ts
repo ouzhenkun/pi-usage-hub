@@ -272,6 +272,7 @@ export function makeKiroProvider(name: string, cfg: KiroConfig = {}): UsageProvi
     matchProviders: cfg.matchProviders ?? [name, "kiro"],
     shortLabel: cfg.shortLabel ?? "KIRO",
     label: cfg.label ?? "Kiro",
+    hidden: cfg.hidden,
     // Presence in config enables the provider; auth comes from auth.json.
     detect: () => true,
 

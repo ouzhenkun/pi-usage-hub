@@ -14,6 +14,12 @@ export class UsageWindow {
   private message = "Fetching usage data...";
   private session: SessionPanel;
 
+  /** Scroll state for the quota view. */
+  private scrollOffset = 0;
+  private lastContentLines = 0;
+  /** Available content lines (border/header/footer excluded). Set via setViewHeight(). */
+  private viewHeight = 15;
+
   constructor(
     private theme: Theme,
     private done: () => void,
@@ -27,10 +33,22 @@ export class UsageWindow {
     if (initialMode === "session") this.session.ensureLoaded();
   }
 
+  /**
+   * Called each render cycle by the overlay's `visible` callback so the quota
+   * view knows how many content lines it can show without overflowing.
+   */
+  setViewHeight(termHeight: number): void {
+    // maxHeight: "80%" → overlay inner height ≈ floor(termHeight * 0.8)
+    // Fixed overhead: top-border + title + separator + empty + hints + bottom-border = 6
+    const overlayH = Math.floor(termHeight * 0.8);
+    this.viewHeight = Math.max(4, overlayH - 6);
+  }
+
   setPendingProviders(pendingProviders: UsageProvider[]): void {
     this.orderedProviders = pendingProviders;
     this.reports.clear();
     this.message = "";
+    this.scrollOffset = 0;
     this.invalidate();
   }
 
@@ -62,8 +80,22 @@ export class UsageWindow {
       this.mode = this.mode === "quota" ? "session" : "quota";
       if (this.mode === "session") this.session.ensureLoaded();
       if (this.mode === "quota") this.ensureQuotaLoaded?.();
+      this.scrollOffset = 0;
       this.requestRender();
       return;
+    }
+    if (this.mode === "quota") {
+      if (matchesKey(data, Key.up)) {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+        this.requestRender();
+        return;
+      }
+      if (matchesKey(data, Key.down)) {
+        const maxScroll = Math.max(0, this.lastContentLines - this.viewHeight);
+        this.scrollOffset = Math.min(maxScroll, this.scrollOffset + 1);
+        this.requestRender();
+        return;
+      }
     }
     if (this.mode === "session") this.session.handleInput(data);
   }
@@ -81,7 +113,17 @@ export class UsageWindow {
     const active = this.mode === "quota"
       ? `${th.fg("accent", "[Quota]")} ${th.fg("dim", "[Session]")}`
       : `${th.fg("dim", "[Quota]")} ${th.fg("accent", "[Session]")}`;
-    const content = this.mode === "quota" ? this.renderQuotaLines() : this.session.render(th);
+
+    let content: string[];
+    if (this.mode === "quota") {
+      const allLines = this.renderQuotaLines();
+      this.lastContentLines = allLines.length;
+      const maxScroll = Math.max(0, this.lastContentLines - this.viewHeight);
+      this.scrollOffset = Math.min(this.scrollOffset, maxScroll);
+      content = allLines.slice(this.scrollOffset, this.scrollOffset + this.viewHeight);
+    } else {
+      content = this.session.render(th);
+    }
 
     const lines: string[] = [];
     lines.push(th.fg("border", `╭${"─".repeat(innerW)}╮`));
@@ -89,8 +131,10 @@ export class UsageWindow {
     lines.push(row(th.fg("borderMuted", "─".repeat(innerW))));
     for (const line of content) lines.push(row(line));
     if (this.mode === "quota") {
+      const canScroll = this.lastContentLines > this.viewHeight;
+      const scrollHint = canScroll ? "↑↓ scroll · " : "";
       lines.push(row());
-      lines.push(row(` ${th.fg("dim", "Tab switch view · Esc/q close")}`));
+      lines.push(row(` ${th.fg("dim", `${scrollHint}Tab switch · Esc close`)}`));
     }
     lines.push(th.fg("border", `╰${"─".repeat(innerW)}╯`));
     return lines;

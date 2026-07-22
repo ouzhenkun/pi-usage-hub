@@ -67,8 +67,8 @@ const provider: UsageProvider = {
 };
 
 export default function register(pi: ExtensionAPI) {
-  const offReady = pi.events.on("pi-usage-hub:ready", (hub: UsageHub) => {
-    hub.register(provider);
+  const offReady = pi.events.on("pi-usage-hub:ready", (data: unknown) => {
+    (data as UsageHub).register(provider);
   });
 
   // Covers the case where pi-usage-hub loaded before this extension.

@@ -60,6 +60,7 @@ export function makeNewApiProvider(name: string, cfg: NewApiConfig): UsageProvid
     matchProviders: cfg.matchProviders ?? [name],
     shortLabel,
     label: cfg.label ?? `NewAPI ${shortLabel}`,
+    hidden: cfg.hidden,
     detect: () => !!(cfg.host && cfg.token && cfg.userId),
 
     fetchUsage: async (): Promise<UsageReport> => {

@@ -49,13 +49,15 @@ export default function register(pi: ExtensionAPI) {
     },
   };
 
-  const offRegister = pi.events.on("pi-usage-hub:register", (p: UsageProvider) => {
-    if (p && typeof p === "object" && typeof (p as UsageProvider).key === "string") {
-      hub.register(p as UsageProvider);
+  const offRegister = pi.events.on("pi-usage-hub:register", (data: unknown) => {
+    const p = data as UsageProvider;
+    if (p && typeof p === "object" && typeof p.key === "string") {
+      hub.register(p);
     }
   });
-  const offUnregister = pi.events.on("pi-usage-hub:unregister", (data: { key?: string }) => {
-    if (data?.key) hub.unregister(data.key);
+  const offUnregister = pi.events.on("pi-usage-hub:unregister", (data: unknown) => {
+    const d = data as { key?: string };
+    if (d?.key) hub.unregister(d.key);
   });
 
   // Emit now and again on session_start so late listeners (footer-hub) still get the hub.
@@ -137,6 +139,7 @@ export default function register(pi: ExtensionAPI) {
       const initialMode = args === "session" ? "session" : "quota";
 
       let handle: { focus: () => void; isFocused: () => boolean } | undefined;
+      const panelRef = { current: undefined as UsageWindow | undefined };
       await ctx.ui.custom<void>((tui, theme, _kb, done) => {
         const unsubscribeInput = ctx.ui.onTerminalInput((data) => {
           if (!isCloseKey(data) || handle?.isFocused()) return;
@@ -177,6 +180,7 @@ export default function register(pi: ExtensionAPI) {
           initialMode,
           loadQuota,
         );
+        panelRef.current = panel;
         if (initialMode === "quota") loadQuota();
         return panel;
       }, {
@@ -184,9 +188,13 @@ export default function register(pi: ExtensionAPI) {
         overlayOptions: {
           width: "80%",
           minWidth: 74,
-          maxWidth: 96,
           maxHeight: "80%",
           anchor: "center",
+          // Pass terminal height each frame so the quota view can scroll correctly.
+          visible: (_tw, termHeight) => {
+            panelRef.current?.setViewHeight(termHeight);
+            return true;
+          },
         },
         onHandle: overlayHandle => {
           handle = overlayHandle;
