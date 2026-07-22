@@ -23,7 +23,7 @@ pi install npm:pi-usage-hub
 | `/usage-hub session` | Show local session token and cost stats |
 | `/usage-hub login <name>` | Open browser login for a cookie-based provider |
 
-Inside the panel, **Tab** switches between Quota and Session.
+Inside the panel, **Tab** switches between Quota and Session. In the Quota view, **↑↓** scrolls when content overflows.
 
 ![pi-usage-hub quota panel](assets/usage-hub-panel.png)
 
@@ -70,6 +70,7 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | `name` | no | Instance key; defaults to `type`, then `type-2`, `type-3`, and so on |
 | `matchProviders` | no | Additional `model.provider` values mapped to this entry |
 | `shortLabel` / `label` | no | Override the footer label or panel title |
+| `hidden` | no | Exclude from panel and footer; `/usage-hub login` still works |
 
 ### Provider types
 
