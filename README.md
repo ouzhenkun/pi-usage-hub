@@ -73,14 +73,14 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 
 ### Provider types
 
-| Type | Credentials | Notes |
-|------|-------------|-------|
-| `deepseek` | `apiKey` | Account balance |
-| `newapi` | `host`, `token`, `userId` | Balance and today's spend; supports multiple instances |
-| `opencode-go` | `workspaceId`; optional `auth` | Uses the configured auth cookie or macOS Chrome |
-| `ark` | optional `cookie`, `csrfToken` | Uses the configured Cookie header or macOS Chrome |
-| `xai` | — | Reads `auth.json` or `~/.grok/auth.json` |
-| `kiro` | — | Reads the Kiro OAuth entry from `auth.json` |
+| Type | Credentials | Notes | Website |
+|------|-------------|-------|---------|
+| `deepseek` | `apiKey` | Account balance | [platform.deepseek.com](https://platform.deepseek.com) |
+| `newapi` | `host`, `token`, `userId` | Balance and today's spend; supports multiple instances | — (self-hosted) |
+| `opencode-go` | `workspaceId`; optional `auth` | Uses the configured auth cookie or macOS Chrome | [opencode.ai](https://opencode.ai) |
+| `ark` | optional `cookie`, `csrfToken` | Uses the configured Cookie header or macOS Chrome | [console.volcengine.com/ark](https://console.volcengine.com/ark) |
+| `xai` | — | Reads `auth.json` or `~/.grok/auth.json` | [x.ai/grok](https://x.ai/grok) |
+| `kiro` | — | Reads the Kiro OAuth entry from `auth.json` | [kiro.dev](https://kiro.dev) |
 
 For NewAPI, `token` is the **system access token** (not a chat `sk-` token), and `userId` is sent as `New-Api-User`. See [Authentication](https://www.newapi.ai/en/docs/api/management/auth) and [Generate access token](https://www.newapi.ai/en/docs/api/management/user-management/user-token-get).
 
