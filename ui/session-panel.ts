@@ -23,13 +23,13 @@ const MAX_PROVIDERS = 5;
 
 // Column widths shared by period, provider and model rows.
 const nameW = 18;
-const costW = 7;
+const costW = 8;
 const tokW = 8;
 const inW = 8;
 const outW = 7;
 const cacheW = 8;
 const msgW = 7;
-const sesW = 5;
+const sesW = 6;
 
 // Model rows are indented 3 extra spaces, so their name field is narrower to
 // keep every numeric column aligned with the provider rows above.
@@ -124,11 +124,16 @@ export class SessionPanel {
     return this.currentPeriod()?.providers.slice(0, MAX_PROVIDERS) ?? [];
   }
 
-  render(theme: Theme): string[] {
+  render(theme: Theme, contentWidth?: number): string[] {
     const th = theme;
     if (this.loading) return [` ${th.fg("muted", "Loading local session usage...")}`];
     if (this.error) return [` ${th.fg("warning", this.error)}`];
     if (!this.usage) return [` ${th.fg("muted", "Loading...")}`];
+
+    // Dynamic column widths
+    const fixedCols = sesW + msgW + inW + outW + cacheW + tokW + costW; // = 52
+    const dynamicNameW = contentWidth ? Math.max(15, Math.min(36, contentWidth - 3 - fixedCols)) : nameW;
+    const sepWidth = contentWidth ?? 72;
 
     const lines: string[] = [];
 
@@ -140,11 +145,11 @@ export class SessionPanel {
         : th.fg("dim", ` ${label} `);
     });
     lines.push(` ${tabParts.join(th.fg("borderMuted", "│"))}`);
-    lines.push(th.fg("borderMuted", " " + "─".repeat(72)));
+    lines.push(th.fg("borderMuted", " " + "─".repeat(sepWidth)));
 
     // ── Provider table (always MAX_PROVIDERS rows tall for fixed height) ──
     const providers = this.providers();
-    lines.push(th.fg("muted", `   ${cols("Provider", "Sess", "Msgs", "↑In", "↓Out", "Cache", "Tokens", "Cost")}`));
+    lines.push(th.fg("muted", `   ${cols("Provider", "Sess", "Msgs", "↑In", "↓Out", "Cache", "Tokens", "Cost", dynamicNameW)}`));
 
     for (let i = 0; i < MAX_PROVIDERS; i++) {
       const p = providers[i];
@@ -155,12 +160,12 @@ export class SessionPanel {
       const selected = i === this.providerIndex;
       const isExpanded = this.expanded.has(p.provider);
       const prefix = selected ? (isExpanded ? " ▾ " : " ▸ ") : "   ";
-      const text = `${prefix}${statCols(p.provider, p)}`;
+      const text = `${prefix}${statCols(p.provider, p, dynamicNameW)}`;
       lines.push(selected ? th.fg("accent", text) : th.fg("dim", text));
 
       if (isExpanded) {
         for (const m of p.models) {
-          lines.push(th.fg("dim", `   └ ${statCols(m.model, m, nameW - 2)}`));
+          lines.push(th.fg("dim", `   └ ${statCols(m.model, m, dynamicNameW - 2)}`));
         }
       }
     }
@@ -169,8 +174,8 @@ export class SessionPanel {
     const period = PERIODS[this.periodIndex]!;
     const totals = this.usage[period.key].totals;
     lines.push("");
-    lines.push(th.fg("borderMuted", " " + "─".repeat(72)));
-    lines.push(th.fg("accent", `   ${statCols("Total:", totals)}`));
+    lines.push(th.fg("borderMuted", " " + "─".repeat(sepWidth)));
+    lines.push(th.fg("accent", `   ${statCols("Total:", totals, dynamicNameW)}`));
 
     lines.push("");
     lines.push(` ${th.fg("dim", `←→ period · ↑↓ provider · Space expand · Tab switch · Esc close`)}`);

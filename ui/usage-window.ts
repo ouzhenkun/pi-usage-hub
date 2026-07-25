@@ -116,13 +116,13 @@ export class UsageWindow {
 
     let content: string[];
     if (this.mode === "quota") {
-      const allLines = this.renderQuotaLines();
+      const allLines = this.renderQuotaLines(bodyW);
       this.lastContentLines = allLines.length;
       const maxScroll = Math.max(0, this.lastContentLines - this.viewHeight);
       this.scrollOffset = Math.min(this.scrollOffset, maxScroll);
       content = allLines.slice(this.scrollOffset, this.scrollOffset + this.viewHeight);
     } else {
-      content = this.session.render(th);
+      content = this.session.render(th, bodyW);
     }
 
     const lines: string[] = [];
@@ -140,7 +140,7 @@ export class UsageWindow {
     return lines;
   }
 
-  private renderQuotaLines(): string[] {
+  private renderQuotaLines(contentWidth: number): string[] {
     const th = this.theme;
     const lines: string[] = [];
 
@@ -156,7 +156,7 @@ export class UsageWindow {
       const provider = this.orderedProviders[i]!;
       const report = this.reports.get(provider);
       if (report) {
-        for (const line of fullReport(report, provider).split("\n")) {
+        for (const line of fullReport(report, provider, contentWidth).split("\n")) {
           lines.push(` ${line}`);
         }
       } else {

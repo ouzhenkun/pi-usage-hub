@@ -185,16 +185,18 @@ export default function register(pi: ExtensionAPI) {
         return panel;
       }, {
         overlay: true,
-        overlayOptions: {
-          width: "80%",
-          minWidth: 74,
-          maxHeight: "80%",
-          anchor: "center",
-          // Pass terminal height each frame so the quota view can scroll correctly.
-          visible: (_tw, termHeight) => {
-            panelRef.current?.setViewHeight(termHeight);
-            return true;
-          },
+        overlayOptions: () => {
+          const termWidth = process.stdout.columns ?? 80;
+          return {
+            width: Math.min(Math.floor(termWidth * 0.65), 100),
+            minWidth: 74,
+            maxHeight: "80%",
+            anchor: "center",
+            visible: (_tw, termHeight) => {
+              panelRef.current?.setViewHeight(termHeight);
+              return true;
+            },
+          };
         },
         onHandle: overlayHandle => {
           handle = overlayHandle;

@@ -33,7 +33,8 @@ export function shortReport(report: UsageReport, provider: UsageProvider): strin
   return `${provider.shortLabel} ${text}`;
 }
 
-export function fullReport(report: UsageReport, provider: UsageProvider): string {
+export function fullReport(report: UsageReport, provider: UsageProvider, contentWidth?: number): string {
+  const barWidth = contentWidth ? Math.max(20, Math.min(50, contentWidth - 32)) : 24;
   const lines: string[] = [];
   lines.push(`\x1b[1m${provider.label}\x1b[0m`);
 
@@ -52,15 +53,15 @@ export function fullReport(report: UsageReport, provider: UsageProvider): string
 
   if (report.session) {
     const r = report.session.resetsIn ? `  \u23F1 ${report.session.resetsIn}` : "";
-    lines.push(`  Rolling: ${bar(report.session.pct)} ${report.session.pct.toFixed(1)}%${r}`);
+    lines.push(`  Rolling: ${bar(report.session.pct, barWidth)} ${report.session.pct.toFixed(1)}%${r}`);
   }
   if (report.weekly) {
     const r = report.weekly.resetsIn ? `  \u23F1 ${report.weekly.resetsIn}` : "";
-    lines.push(`  Weekly:  ${bar(report.weekly.pct)} ${report.weekly.pct.toFixed(1)}%${r}`);
+    lines.push(`  Weekly:  ${bar(report.weekly.pct, barWidth)} ${report.weekly.pct.toFixed(1)}%${r}`);
   }
   if (report.monthly) {
     const r = report.monthly.resetsIn ? `  \u23F1 ${report.monthly.resetsIn}` : "";
-    lines.push(`  Monthly: ${bar(report.monthly.pct)} ${report.monthly.pct.toFixed(1)}%${r}`);
+    lines.push(`  Monthly: ${bar(report.monthly.pct, barWidth)} ${report.monthly.pct.toFixed(1)}%${r}`);
   }
 
   return lines.join("\n");
