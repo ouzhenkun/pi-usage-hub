@@ -60,7 +60,7 @@ export default function register(pi: ExtensionAPI) {
     if (d?.key) hub.unregister(d.key);
   });
 
-  // Emit now and again on session_start so late listeners (footer-hub) still get the hub.
+  // Emit now and again on session_start so late listeners still get the hub.
   pi.events.emit("pi-usage-hub:ready", hub);
   pi.on("session_start", async () => {
     pi.events.emit("pi-usage-hub:ready", hub);
