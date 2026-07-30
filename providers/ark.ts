@@ -108,6 +108,7 @@ export function makeArkProvider(name: string, cfg: ArkConfig = {}): UsageProvide
     matchProviders: cfg.matchProviders ?? [name, "ark"],
     shortLabel: cfg.shortLabel ?? "ARK",
     label: cfg.label ?? "ARK Coding",
+    hidden: cfg.hidden,
     detect: () => resolveCookies(cfg) !== null,
 
     fetchUsage: async (): Promise<UsageReport> => {
