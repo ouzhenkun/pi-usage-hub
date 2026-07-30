@@ -95,7 +95,6 @@ These are companion packages, not npm peer dependencies:
 
 | Type | Companion | Purpose |
 |------|-----------|---------|
-| `xai` | [`pi-xai-oauth`](https://www.npmjs.com/package/pi-xai-oauth) | `/login xai-auth` writes the OAuth entry to `auth.json` |
 | `kiro` | [`pi-provider-kiro-dev`](https://www.npmjs.com/package/pi-provider-kiro-dev) | Provides `/login kiro`, models, and the `auth.json` entry |
 
 pi-usage-hub only reads those credentials; it does not run their OAuth flows.

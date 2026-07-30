@@ -48,7 +48,7 @@ function readPiCredentials(): XaiCredentials | null {
   const path = PI_AUTH_PATH();
   if (!existsSync(path)) return null;
   const auth = readJson<{ xai?: XaiCredentials; "xai-auth"?: XaiCredentials }>(path);
-  const entry = auth?.["xai-auth"] ?? auth?.xai;
+  const entry = auth?.xai ?? auth?.["xai-auth"];
   if (!entry?.access) return null;
   return {
     access: String(entry.access),
