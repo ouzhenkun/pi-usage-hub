@@ -189,7 +189,7 @@ export default function register(pi: ExtensionAPI) {
           const termWidth = process.stdout.columns ?? 80;
           return {
             width: Math.min(Math.floor(termWidth * 0.65), 100),
-            minWidth: 74,
+            minWidth: 80,
             maxHeight: "80%",
             anchor: "center",
             visible: (_tw, termHeight) => {

@@ -27,6 +27,8 @@ Inside the panel, **Tab** switches between Quota and Session. In the Quota view,
 
 ![pi-usage-hub quota panel](assets/usage-hub-panel.png)
 
+![pi-usage-hub session panel](assets/usage-hub-session.png)
+
 ## Configuration
 
 Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel.
