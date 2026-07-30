@@ -159,7 +159,7 @@ pi.on("agent_end", (_event, ctx) => {
 
 // Inside footer render():
 // const usageText = usageHub?.getSummary(ctx.model);
-// "XAI 87% · ↻ 3d 16h / M48%"
+// "XAI 87% · ↻ 3d 16h"
 
 pi.on("session_shutdown", async () => {
   offReady();

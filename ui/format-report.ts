@@ -1,7 +1,7 @@
 import type { UsageProvider, UsageReport } from "../types";
 
 export function bar(pct: number, width = 24): string {
-  const filled = Math.round((pct / 100) * width);
+  const filled = Math.min(width, Math.max(0, Math.round((pct / 100) * width)));
   const empty = width - filled;
   const color = pct < 70 ? "32" : pct < 90 ? "33" : "31";
   const blocks = "\u2588".repeat(filled) + "\u2591".repeat(empty);
@@ -20,6 +20,7 @@ export function shortReport(report: UsageReport, provider: UsageProvider): strin
 
   const resetStr = primary.resetsIn ? ` · ↻ ${primary.resetsIn}` : "";
   let text = `${primary.pct.toFixed(0)}%${resetStr}`;
+  if (primary.pct >= 100) text += " OVER";
 
   const secondary: string[] = [];
   if (report.session != null) {
@@ -63,6 +64,9 @@ export function fullReport(report: UsageReport, provider: UsageProvider, content
     const r = report.monthly.resetsIn ? `  \u23F1 ${report.monthly.resetsIn}` : "";
     lines.push(`  Monthly: ${bar(report.monthly.pct, barWidth)} ${report.monthly.pct.toFixed(1)}%${r}`);
   }
+
+  const over = [report.session, report.weekly, report.monthly].some(d => d != null && d.pct >= 100);
+  if (over) lines.push(`  \x1b[31m\u26A0 over limit\x1b[0m`);
 
   return lines.join("\n");
 }

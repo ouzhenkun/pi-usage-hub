@@ -22,12 +22,6 @@ interface XaiCredentials {
   tokenEndpoint?: string;
 }
 
-interface MonthlyUsage {
-  monthlyLimit: number;
-  used: number;
-  billingPeriodEnd: string;
-}
-
 interface WeeklyUsage {
   creditUsagePercent: number;
   billingPeriodEnd: string;
@@ -102,12 +96,11 @@ function isFresh(credentials: XaiCredentials): boolean {
 }
 
 function validateTokenEndpoint(url: string): string {
-  const parsed = new URL(url);
-  const host = parsed.hostname.toLowerCase();
-  if (parsed.protocol !== "https:" || (host !== "x.ai" && !host.endsWith(".x.ai"))) {
-    throw new Error(`unexpected xAI token endpoint: ${url}`);
+  const normalized = url.replace(/\/$/, "");
+  if (normalized !== DEFAULT_TOKEN_ENDPOINT) {
+    throw new Error("unexpected xAI token endpoint — run /login xai-auth");
   }
-  return url;
+  return DEFAULT_TOKEN_ENDPOINT;
 }
 
 async function refreshCredentials(credentials: XaiCredentials): Promise<XaiCredentials> {
@@ -156,38 +149,17 @@ function resetsInFromIso(iso: string | undefined): string | undefined {
   return formatDurationMs(end - Date.now());
 }
 
-function parseMonthlyUsage(payload: unknown): MonthlyUsage {
+function parseWeeklyUsage(payload: unknown): WeeklyUsage {
   if (!payload || typeof payload !== "object") throw new Error("invalid billing payload");
   const config = (payload as Record<string, unknown>).config;
   if (!config || typeof config !== "object") throw new Error("invalid billing payload");
 
-  const monthlyLimit = ((config as Record<string, unknown>).monthlyLimit as Record<string, unknown>)?.val;
-  const used = ((config as Record<string, unknown>).used as Record<string, unknown>)?.val;
-  const billingPeriodEnd = (config as Record<string, unknown>).billingPeriodEnd;
-
-  if (
-    typeof monthlyLimit !== "number" ||
-    !Number.isFinite(monthlyLimit) ||
-    typeof used !== "number" ||
-    !Number.isFinite(used) ||
-    typeof billingPeriodEnd !== "string" ||
-    !Number.isFinite(new Date(billingPeriodEnd).getTime())
-  ) {
-    throw new Error("invalid billing payload");
-  }
-
-  return { monthlyLimit, used, billingPeriodEnd };
-}
-
-function parseWeeklyUsage(payload: unknown): WeeklyUsage | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const config = (payload as Record<string, unknown>).config;
-  if (!config || typeof config !== "object") return undefined;
-
   const currentPeriod = (config as Record<string, unknown>).currentPeriod as
     | Record<string, unknown>
     | undefined;
-  if (currentPeriod?.type !== "USAGE_PERIOD_TYPE_WEEKLY") return undefined;
+  if (currentPeriod?.type !== "USAGE_PERIOD_TYPE_WEEKLY") {
+    throw new Error("could not parse usage");
+  }
 
   const creditUsagePercent = (config as Record<string, unknown>).creditUsagePercent;
   const billingPeriodEnd = (config as Record<string, unknown>).billingPeriodEnd;
@@ -197,7 +169,7 @@ function parseWeeklyUsage(payload: unknown): WeeklyUsage | undefined {
     typeof billingPeriodEnd !== "string" ||
     !Number.isFinite(new Date(billingPeriodEnd).getTime())
   ) {
-    return undefined;
+    throw new Error("could not parse usage");
   }
 
   return { creditUsagePercent, billingPeriodEnd };
@@ -216,76 +188,83 @@ async function fetchJson(url: string, token: string): Promise<unknown> {
       },
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`) as Error & { status?: number };
+      err.status = res.status;
+      throw err;
+    }
     return await res.json();
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function fetchBillingUsage(token: string): Promise<{ monthly: MonthlyUsage; weekly?: WeeklyUsage }> {
-  const monthly = parseMonthlyUsage(await fetchJson(`${BILLING_BASE_URL}/billing`, token));
-  let weekly: WeeklyUsage | undefined;
-  try {
-    const weeklyPayload = await fetchJson(`${BILLING_BASE_URL}/billing?format=credits`, token);
-    weekly = parseWeeklyUsage(weeklyPayload);
-    if (!weekly && weeklyPayload) {
-      const config = (weeklyPayload as any)?.config;
-      weekly = {
-        creditUsagePercent: 0,
-        billingPeriodEnd: config?.billingPeriodEnd || new Date().toISOString(),
-      };
-    }
-  } catch {
-    weekly = undefined;
-  }
-  return { monthly, weekly };
+function isUnauthorized(err: unknown): boolean {
+  return !!err && typeof err === "object" && (err as { status?: number }).status === 401;
 }
 
-function mapUsage(monthly: MonthlyUsage, weekly?: WeeklyUsage): UsageReport {
-  const report: UsageReport = {};
+async function fetchBillingUsage(token: string): Promise<WeeklyUsage> {
+  return parseWeeklyUsage(await fetchJson(`${BILLING_BASE_URL}/billing?format=credits`, token));
+}
 
-  if (weekly) {
-    report.weekly = {
+function mapUsage(weekly: WeeklyUsage): UsageReport {
+  return {
+    weekly: {
       pct: weekly.creditUsagePercent,
       resetsIn: resetsInFromIso(weekly.billingPeriodEnd),
-    };
-  }
-
-  if (monthly.monthlyLimit > 0) {
-    report.monthly = {
-      pct: (monthly.used / monthly.monthlyLimit) * 100,
-      resetsIn: resetsInFromIso(monthly.billingPeriodEnd),
-    };
-  }
-
-  if (!report.weekly && !report.monthly) {
-    return { error: "could not parse usage" };
-  }
-
-  return report;
+    },
+  };
 }
 
 export function makeXaiProvider(name: string, cfg: XaiConfig = {}): UsageProvider {
+  // In-memory only — intentionally not written back to auth.json.
   let cachedCredentials: XaiCredentials | null = null;
+  let diskRefreshAtCache: string | undefined;
 
-  async function getCredentials(): Promise<XaiCredentials | null> {
+  async function getCredentials(forceRefresh = false): Promise<XaiCredentials | null> {
     const stored = readStoredCredentials();
-    if (!stored) return null;
-    if (isFresh(stored)) {
-      cachedCredentials = stored;
-      return stored;
+    if (!stored) {
+      cachedCredentials = null;
+      diskRefreshAtCache = undefined;
+      return null;
     }
 
+    // Drop cache if disk was re-logged to a different refresh token.
     if (
       cachedCredentials &&
-      cachedCredentials.refresh === stored.refresh &&
-      isFresh(cachedCredentials)
+      stored.refresh &&
+      diskRefreshAtCache &&
+      stored.refresh !== diskRefreshAtCache &&
+      stored.refresh !== cachedCredentials.refresh
     ) {
-      return cachedCredentials;
+      cachedCredentials = null;
+      diskRefreshAtCache = undefined;
     }
 
-    cachedCredentials = await refreshCredentials(stored);
+    if (!forceRefresh) {
+      if (isFresh(stored)) {
+        cachedCredentials = stored;
+        diskRefreshAtCache = stored.refresh;
+        return stored;
+      }
+      // Prefer session cache after a prior refresh (tokens are not persisted).
+      if (cachedCredentials && isFresh(cachedCredentials)) {
+        return cachedCredentials;
+      }
+    }
+
+    const base =
+      cachedCredentials?.refresh
+        ? {
+            access: cachedCredentials.access,
+            refresh: cachedCredentials.refresh,
+            expires: cachedCredentials.expires,
+            tokenEndpoint: cachedCredentials.tokenEndpoint ?? stored.tokenEndpoint,
+          }
+        : stored;
+
+    cachedCredentials = await refreshCredentials(base);
+    diskRefreshAtCache = stored.refresh;
     return cachedCredentials;
   }
 
@@ -299,10 +278,16 @@ export function makeXaiProvider(name: string, cfg: XaiConfig = {}): UsageProvide
 
     fetchUsage: async (): Promise<UsageReport> => {
       try {
-        const credentials = await getCredentials();
+        const credentials = await getCredentials(false);
         if (!credentials) return { error: "not logged in — run /login xai-auth" };
-        const usage = await fetchBillingUsage(credentials.access);
-        return mapUsage(usage.monthly, usage.weekly);
+        try {
+          return mapUsage(await fetchBillingUsage(credentials.access));
+        } catch (err) {
+          if (!isUnauthorized(err)) throw err;
+          const refreshed = await getCredentials(true);
+          if (!refreshed) return { error: "session expired — run /login xai-auth" };
+          return mapUsage(await fetchBillingUsage(refreshed.access));
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") return { error: "timeout" };
         return { error: err?.message ?? String(err) };
