@@ -161,16 +161,20 @@ function parseWeeklyUsage(payload: unknown): WeeklyUsage {
     throw new Error("could not parse usage");
   }
 
-  const creditUsagePercent = (config as Record<string, unknown>).creditUsagePercent;
+  const creditUsagePercentRaw = (config as Record<string, unknown>).creditUsagePercent;
   const billingPeriodEnd = (config as Record<string, unknown>).billingPeriodEnd;
   if (
-    typeof creditUsagePercent !== "number" ||
-    !Number.isFinite(creditUsagePercent) ||
     typeof billingPeriodEnd !== "string" ||
     !Number.isFinite(new Date(billingPeriodEnd).getTime())
   ) {
     throw new Error("could not parse usage");
   }
+
+  // Fresh billing cycle omits creditUsagePercent; treat missing/invalid as 0 instead of failing.
+  const creditUsagePercent =
+    typeof creditUsagePercentRaw === "number" && Number.isFinite(creditUsagePercentRaw)
+      ? creditUsagePercentRaw
+      : 0;
 
   return { creditUsagePercent, billingPeriodEnd };
 }
