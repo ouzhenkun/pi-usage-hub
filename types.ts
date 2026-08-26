@@ -31,7 +31,9 @@ export type ProviderType =
   | "ark"
   | "opencode-go"
   | "xai"
-  | "kiro";
+  | "kiro"
+  | "kimi-coding"
+  | "zai";
 
 /** Shared optional fields for factories and config entries. */
 export interface ProviderMeta {
@@ -40,6 +42,8 @@ export interface ProviderMeta {
   label?: string;
   /** If true, exclude from active providers (quota panel, footer). Login still works. */
   hidden?: boolean;
+  /** If true, do not register / refuse registration entirely. */
+  disabled?: boolean;
 }
 
 /** Factory input — no type (caller already picked the factory). */
@@ -70,14 +74,38 @@ export interface XaiConfig extends ProviderMeta {}
 
 export interface KiroConfig extends ProviderMeta {}
 
+export interface KimiCodingConfig extends ProviderMeta {
+  /** Optional; falls back to the "kimi-coding" entry in pi's auth.json. */
+  apiKey?: string;
+}
+
+export interface ZaiConfig extends ProviderMeta {
+  /** Optional; falls back to the "zai" entry in pi's auth.json. */
+  apiKey?: string;
+}
+
 /** L1 entry after parse — name always set (auto: type, type-2, … when omitted/clashing). */
-export type ProviderConfig =
+export type BuiltinProviderConfig =
   | ({ name: string; type: "deepseek" } & DeepseekConfig)
   | ({ name: string; type: "newapi" } & NewApiConfig)
   | ({ name: string; type: "ark" } & ArkConfig)
   | ({ name: string; type: "opencode-go" } & OpencodeGoConfig)
   | ({ name: string; type: "xai" } & XaiConfig)
-  | ({ name: string; type: "kiro" } & KiroConfig);
+  | ({ name: string; type: "kiro" } & KiroConfig)
+  | ({ name: string; type: "kimi-coding" } & KimiCodingConfig)
+  | ({ name: string; type: "zai" } & ZaiConfig);
+
+/**
+ * L2 entry: no `type` — targets an externally-registered (custom) provider.
+ * Meta fields override the provider's own values at register time; all other
+ * fields pass through to `hub.getProviderConfig(name)`.
+ */
+export interface ExtensionProviderConfig extends ProviderMeta {
+  name: string;
+  [key: string]: unknown;
+}
+
+export type ProviderConfig = BuiltinProviderConfig | ExtensionProviderConfig;
 
 export interface UsageHubConfig {
   providers?: ProviderConfig[];
@@ -86,6 +114,10 @@ export interface UsageHubConfig {
 export interface UsageHub {
   register(p: UsageProvider): void;
   unregister(key: string): void;
+  /** Instantiate a built-in provider and register it (auto name allocation). Returns its key, or null if unknown type / disabled. */
+  registerBuiltin(type: ProviderType, cfg?: ProviderMeta & Record<string, unknown>): string | null;
+  /** Raw config entry for a custom provider key, if the user added one. */
+  getProviderConfig(key: string): ExtensionProviderConfig | undefined;
   list(): UsageProvider[];
   /** Match model → cached one-line summary, or null if no provider / not fetched yet. */
   getSummary(model?: { provider?: string }): string | null;

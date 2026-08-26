@@ -27,6 +27,12 @@ export default function register(pi: ExtensionAPI) {
       registry.unregister(key);
       cache.invalidate(key);
     },
+    registerBuiltin(type, cfg) {
+      return registry.registerBuiltin(type, cfg);
+    },
+    getProviderConfig(key) {
+      return registry.getExtensionConfig(key);
+    },
     list() {
       return registry.list();
     },

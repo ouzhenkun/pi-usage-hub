@@ -59,7 +59,9 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
       "type": "xai",
       "matchProviders": ["xai-auth", "xai", "grok-cli"]
     },
-    { "type": "kiro" }
+    { "type": "kiro" },
+    { "type": "kimi-coding" },
+    { "type": "zai" }
   ]
 }
 ```
@@ -73,6 +75,7 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | `matchProviders` | no | Additional `model.provider` values mapped to this entry |
 | `shortLabel` / `label` | no | Override the footer label or panel title |
 | `hidden` | no | Exclude from panel and footer; `/usage-hub login` still works |
+| `disabled` | no | Do not register at all; on untyped entries, refuses that provider's registration |
 
 ### Provider types
 
@@ -84,6 +87,8 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | `ark` | optional `cookie`, `csrfToken` | Uses the configured Cookie header or macOS Chrome | [火山引擎](https://console.volcengine.com/ark) |
 | `xai` | — | Reads `auth.json` or `~/.grok/auth.json` | [x.ai/grok](https://x.ai/grok) |
 | `kiro` | — | Reads the Kiro OAuth entry from `auth.json` | [kiro.dev](https://kiro.dev) |
+| `kimi-coding` | optional `apiKey` | 5h rolling window + weekly quota; falls back to the `kimi-coding` entry in `auth.json` (Kimi Code key, not the open-platform key) | [kimi.com/code](https://www.kimi.com/code) |
+| `zai` | optional `apiKey` | 5h window, weekly, and monthly search quota; falls back to the `zai` entry in `auth.json` | [z.ai](https://z.ai) |
 
 For NewAPI, `token` is the **system access token** (not a chat `sk-` token), and `userId` is sent as `New-Api-User`. See [Authentication](https://www.newapi.ai/en/docs/api/management/auth) and [Generate access token](https://www.newapi.ai/en/docs/api/management/user-management/user-token-get).
 
@@ -110,6 +115,39 @@ pi.events.on("pi-usage-hub:ready", (hub) => hub.register(myProvider));
 pi.events.emit("pi-usage-hub:register", myProvider);
 pi.events.emit("pi-usage-hub:unregister", { key: "my-relay" });
 ```
+
+Re-registering the same key overwrites (registration is idempotent), so the ready-listener + emit combination above never duplicates a provider.
+
+### Configure a custom provider from JSON
+
+`providers` entries **without** `type` target an externally-registered provider by `name`. Meta fields override the provider's own values at register time; `disabled: true` refuses registration; all other fields pass through untouched to `hub.getProviderConfig(name)`, so the extension can read its credentials from JSON instead of env vars:
+
+```json
+{
+  "providers": [
+    { "type": "kimi-coding" },
+    {
+      "name": "qianwen",
+      "shortLabel": "QW",
+      "hidden": false,
+      "cookie": "login_qianwenai_ticket=..."
+    }
+  ]
+}
+```
+
+```ts
+pi.events.on("pi-usage-hub:ready", (hub) => {
+  const cfg = hub.getProviderConfig("qianwen"); // { shortLabel, hidden, cookie, ... }
+  const cookie = typeof cfg?.cookie === "string" ? cfg.cookie : undefined;
+});
+```
+
+Untyped entries do not affect built-in name allocation; two untyped entries with the same `name` resolve last-write-wins. An untyped entry whose `name` matches a built-in entry also applies to it, so `{ "name": "kimi-coding", "hidden": true }` hides the built-in without editing its own entry.
+
+### Register a built-in from an extension
+
+`hub.registerBuiltin(type, cfg?)` instantiates any built-in factory with your own parameters (e.g. credentials obtained at runtime) and registers it, allocating `type`, `type-2`, … on key clash. Returns the registered key, or `null` for unknown types or `disabled: true`.
 
 ## Pull API
 
