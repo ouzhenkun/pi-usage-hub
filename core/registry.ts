@@ -14,6 +14,7 @@ import { makeXaiProvider } from "../providers/xai";
 import { makeKiroProvider } from "../providers/kiro";
 import { makeKimiCodingProvider } from "../providers/kimi-coding";
 import { makeZaiProvider } from "../providers/zai";
+import { makeCodexProvider } from "../providers/codex";
 
 const FACTORIES = {
   deepseek: makeDeepseekProvider,
@@ -24,12 +25,7 @@ const FACTORIES = {
   kiro: makeKiroProvider,
   "kimi-coding": makeKimiCodingProvider,
   zai: makeZaiProvider,
-} satisfies Record<ProviderType, (name: string, cfg: any) => UsageProvider>;
-
-function makeProvider(cfg: BuiltinProviderConfig): UsageProvider {
-  const factory = FACTORIES[cfg.type] as (name: string, cfg: unknown) => UsageProvider;
-  return factory(cfg.name, cfg);
-}
+} satisfies Record<Exclude<ProviderType, "codex">, (name: string, cfg: any) => UsageProvider>;
 
 /** Config-entry meta wins over the provider's own values, per explicitly-set field. */
 function applyMeta(p: UsageProvider, cfg: ExtensionProviderConfig): UsageProvider {
@@ -52,6 +48,14 @@ function allocateName(base: string, taken: (name: string) => boolean): string {
 export class ProviderRegistry {
   private providers = new Map<string, UsageProvider>();
   private extensionConfigs = new Map<string, ExtensionProviderConfig>();
+
+  private makeBuiltinProvider(cfg: BuiltinProviderConfig): UsageProvider {
+    if (cfg.type === "codex") {
+      return makeCodexProvider(cfg.name, cfg);
+    }
+    const factory = FACTORIES[cfg.type] as (name: string, config: unknown) => UsageProvider;
+    return factory(cfg.name, cfg);
+  }
 
   register(provider: UsageProvider): void {
     const cfg = this.extensionConfigs.get(provider.key);
@@ -80,12 +84,16 @@ export class ProviderRegistry {
   }
 
   registerBuiltin(type: ProviderType, cfg: ProviderMeta & Record<string, unknown> = {}): string | null {
-    const factory = FACTORIES[type] as ((name: string, cfg: unknown) => UsageProvider) | undefined;
-    if (!factory || cfg.disabled) return null;
+    if (cfg.disabled) return null;
     const preferred = typeof (cfg as { name?: unknown }).name === "string"
       ? (cfg as { name: string }).name.trim()
       : "";
     const name = allocateName(preferred || type, n => this.providers.has(n));
+    if (type === "codex") {
+      this.register(makeCodexProvider(name, cfg));
+      return name;
+    }
+    const factory = FACTORIES[type] as (name: string, config: unknown) => UsageProvider;
     this.register(factory(name, cfg));
     return name;
   }
@@ -115,7 +123,7 @@ export class ProviderRegistry {
         const builtin = cfg as BuiltinProviderConfig;
         if (builtin.disabled) continue;
         // Name pre-allocated by the config parser; register verbatim (last write wins).
-        this.register(makeProvider(builtin));
+        this.register(this.makeBuiltinProvider(builtin));
       } else {
         this.extensionConfigs.set(cfg.name, cfg as ExtensionProviderConfig);
       }

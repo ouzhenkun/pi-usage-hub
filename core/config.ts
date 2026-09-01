@@ -26,6 +26,7 @@ const BUILTIN_SCHEMAS: Record<ProviderType, BuiltinSchema> = {
   kiro: {},
   "kimi-coding": { optional: ["apiKey"] },
   zai: { optional: ["apiKey"] },
+  codex: {},
 };
 
 export function agentDir(): string {

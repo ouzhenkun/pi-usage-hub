@@ -33,7 +33,8 @@ export type ProviderType =
   | "xai"
   | "kiro"
   | "kimi-coding"
-  | "zai";
+  | "zai"
+  | "codex";
 
 /** Shared optional fields for factories and config entries. */
 export interface ProviderMeta {
@@ -84,6 +85,8 @@ export interface ZaiConfig extends ProviderMeta {
   apiKey?: string;
 }
 
+export interface CodexConfig extends ProviderMeta {}
+
 /** L1 entry after parse — name always set (auto: type, type-2, … when omitted/clashing). */
 export type BuiltinProviderConfig =
   | ({ name: string; type: "deepseek" } & DeepseekConfig)
@@ -93,7 +96,8 @@ export type BuiltinProviderConfig =
   | ({ name: string; type: "xai" } & XaiConfig)
   | ({ name: string; type: "kiro" } & KiroConfig)
   | ({ name: string; type: "kimi-coding" } & KimiCodingConfig)
-  | ({ name: string; type: "zai" } & ZaiConfig);
+  | ({ name: string; type: "zai" } & ZaiConfig)
+  | ({ name: string; type: "codex" } & CodexConfig);
 
 /**
  * L2 entry: no `type` — targets an externally-registered (custom) provider.

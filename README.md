@@ -7,7 +7,7 @@
 
 ## Why
 
-Checking separate dashboards for DeepSeek, NewAPI relays, xAI, Kiro, OpenCode Go, and ARK breaks flow. pi-usage-hub brings their quotas and balances into one TUI panel while keeping footer integration optional and pull-based.
+Checking separate dashboards for DeepSeek, NewAPI relays, OpenAI Codex, xAI, Kiro, OpenCode Go, and ARK breaks flow. pi-usage-hub brings their quotas and balances into one TUI panel while keeping footer integration optional and pull-based.
 
 ## Install
 
@@ -61,7 +61,8 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
     },
     { "type": "kiro" },
     { "type": "kimi-coding" },
-    { "type": "zai" }
+    { "type": "zai" },
+    { "type": "codex" }
   ]
 }
 ```
@@ -89,6 +90,7 @@ Create `~/.pi/agent/pi-usage-hub.json`. Provider order is preserved in the panel
 | `kiro` | — | Reads the Kiro OAuth entry from `auth.json` | [kiro.dev](https://kiro.dev) |
 | `kimi-coding` | optional `apiKey` | 5h rolling window + weekly quota; falls back to the `kimi-coding` entry in `auth.json` (Kimi Code key, not the open-platform key) | [kimi.com/code](https://www.kimi.com/code) |
 | `zai` | optional `apiKey` | 5h window, weekly, and monthly search quota; falls back to the `zai` entry in `auth.json` | [z.ai](https://z.ai) |
+| `codex` | — | Codex rolling and 7-day usage windows; reads the `openai-codex` OAuth entry in `auth.json` | [OpenAI Codex](https://openai.com/codex/) |
 
 For NewAPI, `token` is the **system access token** (not a chat `sk-` token), and `userId` is sent as `New-Api-User`. See [Authentication](https://www.newapi.ai/en/docs/api/management/auth) and [Generate access token](https://www.newapi.ai/en/docs/api/management/user-management/user-token-get).
 
