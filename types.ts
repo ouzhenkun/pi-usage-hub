@@ -67,7 +67,7 @@ export interface ArkConfig extends ProviderMeta {
 
 export interface OpencodeGoConfig extends ProviderMeta {
   workspaceId: string;
-  /** `auth` cookie value; if set, skips Chrome. */
+  /** OpenCode console session cookie value; if set, skips Chrome. */
   auth?: string;
 }
 

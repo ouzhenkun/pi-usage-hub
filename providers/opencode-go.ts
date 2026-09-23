@@ -3,39 +3,37 @@ import type { OpencodeGoConfig, UsageProvider, UsageReport } from "../types";
 import { readChromeCookies } from "../utils/chrome-cookies";
 import { formatDurationSeconds } from "../utils/duration";
 
-const SCRAPED_NUMBER = "(-?\\d+(?:\\.\\d+)?)";
 const FETCH_TIMEOUT_MS = 10_000;
+const SESSION_COOKIE = "__Host-console_session";
+const STATUS_URL = "https://opencode.ai/console/api/go/status";
 
-function makeRe(key: string): RegExp[] {
-  const pctFirst = new RegExp(`${key}:\\$R\\[\\d+\\]=\\{[^}]*usagePercent:${SCRAPED_NUMBER}[^}]*resetInSec:${SCRAPED_NUMBER}[^}]*\\}`);
-  const resetFirst = new RegExp(`${key}:\\$R\\[\\d+\\]=\\{[^}]*resetInSec:${SCRAPED_NUMBER}[^}]*usagePercent:${SCRAPED_NUMBER}[^}]*\\}`);
-  return [pctFirst, resetFirst];
-}
+type Meter = {
+  limitMicroCents?: string;
+  usedMicroCents?: string;
+  resetsAt?: string;
+};
 
-function parseWindow(html: string, key: string): { pct: number; resetsInSec: number } | null {
-  const [rePct, reReset] = makeRe(key);
-  const m1 = rePct.exec(html);
-  if (m1) {
-    const pct = Number(m1[1]), sec = Number(m1[2]);
-    if (Number.isFinite(pct) && Number.isFinite(sec)) return { pct, resetsInSec: sec };
-  }
-  const m2 = reReset.exec(html);
-  if (m2) {
-    const sec = Number(m2[1]), pct = Number(m2[2]);
-    if (Number.isFinite(pct) && Number.isFinite(sec)) return { pct, resetsInSec: sec };
-  }
-  return null;
-}
-
-function readChromeAuthCookie(): string | null {
+function readChromeSessionCookie(): string | null {
   if (process.platform !== "darwin") return null;
   const cookies = readChromeCookies("%opencode.ai%", ["opencode.ai", ".opencode.ai"]);
-  return cookies.find(c => c.name === "auth")?.value ?? null;
+  return cookies.find(c => c.name === SESSION_COOKIE)?.value ?? null;
 }
 
-function resolveAuth(cfg: OpencodeGoConfig): string | null {
+function resolveSession(cfg: OpencodeGoConfig): string | null {
   if (cfg.auth?.trim()) return cfg.auth.trim();
-  return readChromeAuthCookie();
+  return readChromeSessionCookie();
+}
+
+function toWindow(
+  meter: Meter | undefined,
+  fallbackResetsAt?: string,
+): { pct: number; resetsIn: string } | null {
+  const limit = Number(meter?.limitMicroCents);
+  const used = Number(meter?.usedMicroCents);
+  if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(used)) return null;
+  const resetsAt = meter?.resetsAt ?? fallbackResetsAt;
+  const resetsInSec = resetsAt ? (Date.parse(resetsAt) - Date.now()) / 1000 : Number.NaN;
+  return { pct: (used / limit) * 100, resetsIn: formatDurationSeconds(resetsInSec) };
 }
 
 export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): UsageProvider {
@@ -48,13 +46,13 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
     shortLabel: cfg.shortLabel ?? "OCG",
     label: cfg.label ?? "OpenCode Go",
     hidden: cfg.hidden,
-    detect: () => !!workspaceId && (!!resolveAuth(cfg) || !manual),
+    detect: () => !!workspaceId && (!!resolveSession(cfg) || !manual),
 
     fetchUsage: async (): Promise<UsageReport> => {
       if (!workspaceId) return { error: "no credentials configured" };
 
-      const authCookie = resolveAuth(cfg);
-      if (!authCookie) {
+      const session = resolveSession(cfg);
+      if (!session) {
         return {
           error: manual
             ? "invalid auth in config"
@@ -66,31 +64,38 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
       const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const res = await fetch(
-          `https://opencode.ai/workspace/${encodeURIComponent(workspaceId)}/go`,
-          {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/148.0",
-              Accept: "text/html",
-              Cookie: `auth=${authCookie}`,
-            },
-            signal: controller.signal,
+        const res = await fetch(STATUS_URL, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/148.0",
+            Accept: "application/json",
+            "x-org-id": workspaceId,
+            Cookie: `${SESSION_COOKIE}=${session}`,
           },
-        );
+          signal: controller.signal,
+        });
 
+        if (res.status === 401 || res.status === 403) {
+          return { error: "session expired — /usage-hub login ocg" };
+        }
         if (!res.ok) return { error: `HTTP ${res.status}` };
 
-        const html = await res.text();
-        const rolling = parseWindow(html, "rollingUsage");
-        const weekly = parseWindow(html, "weeklyUsage");
-        const monthly = parseWindow(html, "monthlyUsage");
+        let data: { access?: { endsAt?: string; meters?: Record<string, Meter> } };
+        try {
+          data = await res.json();
+        } catch {
+          return { error: "could not parse usage from response" };
+        }
 
-        if (!rolling && !weekly && !monthly) return { error: "could not parse usage from dashboard" };
+        const meters = data?.access?.meters;
+        const fiveHour = toWindow(meters?.fiveHour);
+        const weekly = toWindow(meters?.week);
+        const monthly = toWindow(meters?.month, data?.access?.endsAt);
+        if (!fiveHour && !weekly && !monthly) return { error: "could not parse usage from response" };
 
         const report: UsageReport = {};
-        if (rolling) report.session = { pct: rolling.pct, resetsIn: formatDurationSeconds(rolling.resetsInSec) };
-        if (weekly) report.weekly = { pct: weekly.pct, resetsIn: formatDurationSeconds(weekly.resetsInSec) };
-        if (monthly) report.monthly = { pct: monthly.pct, resetsIn: formatDurationSeconds(monthly.resetsInSec) };
+        if (fiveHour) report.session = fiveHour;
+        if (weekly) report.weekly = weekly;
+        if (monthly) report.monthly = monthly;
         return report;
       } catch (err: any) {
         if (err?.name === "AbortError") return { error: "timeout" };
@@ -104,11 +109,11 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
       ? undefined
       : async (): Promise<boolean> => {
           if (!workspaceId) return false;
-          execFile("open", ["-a", "Google Chrome", `https://opencode.ai/workspace/${workspaceId}/go`]);
+          execFile("open", ["-a", "Google Chrome", `https://opencode.ai/console/${workspaceId}/go`]);
           const deadline = Date.now() + 300_000;
           while (Date.now() < deadline) {
             await new Promise(r => setTimeout(r, 2000));
-            if (readChromeAuthCookie()) return true;
+            if (readChromeSessionCookie()) return true;
           }
           return false;
         },
