@@ -112,9 +112,13 @@ export class ProviderRegistry {
   matchModel(model?: { provider?: string }): UsageProvider | null {
     const current = model?.provider;
     if (!current) return null;
-    return this.detectActive().find(p =>
-      p.key === current || (p.matchProviders?.includes(current) ?? false),
-    ) ?? null;
+    const matches = (p: UsageProvider) =>
+      p.key === current || (p.matchProviders?.includes(current) ?? false);
+    // Match by name first: detect() may read credentials synchronously (Chrome cookie DB),
+    // and this runs on every footer update.
+    const direct = this.list().find(p => !p.hidden && matches(p));
+    if (direct) return direct;
+    return this.detectActive().find(matches) ?? null;
   }
 
   loadFromConfig(providers: ProviderConfig[]): void {

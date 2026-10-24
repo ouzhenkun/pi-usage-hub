@@ -98,14 +98,14 @@ function isFresh(credentials: XaiCredentials): boolean {
 function validateTokenEndpoint(url: string): string {
   const normalized = url.replace(/\/$/, "");
   if (normalized !== DEFAULT_TOKEN_ENDPOINT) {
-    throw new Error("unexpected xAI token endpoint — run /login xai-auth");
+    throw new Error("unexpected xAI token endpoint — run /login xai");
   }
   return DEFAULT_TOKEN_ENDPOINT;
 }
 
 async function refreshCredentials(credentials: XaiCredentials): Promise<XaiCredentials> {
   if (!credentials.refresh) {
-    throw new Error("session expired — run /login xai-auth");
+    throw new Error("session expired — run /login xai");
   }
 
   const tokenEndpoint = validateTokenEndpoint(credentials.tokenEndpoint || DEFAULT_TOKEN_ENDPOINT);
@@ -283,13 +283,13 @@ export function makeXaiProvider(name: string, cfg: XaiConfig = {}): UsageProvide
     fetchUsage: async (): Promise<UsageReport> => {
       try {
         const credentials = await getCredentials(false);
-        if (!credentials) return { error: "not logged in — run /login xai-auth" };
+        if (!credentials) return { error: "not logged in — run /login xai" };
         try {
           return mapUsage(await fetchBillingUsage(credentials.access));
         } catch (err) {
           if (!isUnauthorized(err)) throw err;
           const refreshed = await getCredentials(true);
-          if (!refreshed) return { error: "session expired — run /login xai-auth" };
+          if (!refreshed) return { error: "session expired — run /login xai" };
           return mapUsage(await fetchBillingUsage(refreshed.access));
         }
       } catch (err: any) {

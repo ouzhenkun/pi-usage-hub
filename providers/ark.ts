@@ -117,7 +117,7 @@ export function makeArkProvider(name: string, cfg: ArkConfig = {}): UsageProvide
         return {
           error: manual
             ? "invalid cookie in config"
-            : "not logged in — set cookie in config or /usage-hub login ark",
+            : `not logged in — set cookie in config or /usage-hub login ${name}`,
         };
       }
       const result = await callApi(auth.cookieHeader, auth.csrf);
@@ -125,7 +125,7 @@ export function makeArkProvider(name: string, cfg: ArkConfig = {}): UsageProvide
         return {
           error: manual
             ? "session expired — refresh cookie in config"
-            : "session expired — run /usage-hub login ark",
+            : `session expired — run /usage-hub login ${name}`,
         };
       }
       return result;

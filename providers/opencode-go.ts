@@ -36,6 +36,33 @@ function toWindow(
   return { pct: (used / limit) * 100, resetsIn: formatDurationSeconds(resetsInSec) };
 }
 
+async function fetchStatus(session: string, workspaceId: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(STATUS_URL, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/148.0",
+        Accept: "application/json",
+        "x-org-id": workspaceId,
+        Cookie: `${SESSION_COOKIE}=${session}`,
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A cookie that exists locally may still be revoked server-side. */
+async function sessionWorks(session: string, workspaceId: string): Promise<boolean> {
+  try {
+    return (await fetchStatus(session, workspaceId)).ok;
+  } catch {
+    return false;
+  }
+}
+
 export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): UsageProvider {
   const workspaceId = cfg.workspaceId;
   const manual = !!cfg.auth?.trim();
@@ -56,26 +83,15 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
         return {
           error: manual
             ? "invalid auth in config"
-            : "not logged in — set auth in config or /usage-hub login ocg",
+            : `not logged in — set auth in config or /usage-hub login ${name}`,
         };
       }
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
       try {
-        const res = await fetch(STATUS_URL, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/148.0",
-            Accept: "application/json",
-            "x-org-id": workspaceId,
-            Cookie: `${SESSION_COOKIE}=${session}`,
-          },
-          signal: controller.signal,
-        });
+        const res = await fetchStatus(session, workspaceId);
 
         if (res.status === 401 || res.status === 403) {
-          return { error: "session expired — /usage-hub login ocg" };
+          return { error: `session expired — /usage-hub login ${name}` };
         }
         if (!res.ok) return { error: `HTTP ${res.status}` };
 
@@ -100,8 +116,6 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
       } catch (err: any) {
         if (err?.name === "AbortError") return { error: "timeout" };
         return { error: err?.message ?? String(err) };
-      } finally {
-        clearTimeout(timer);
       }
     },
 
@@ -109,11 +123,21 @@ export function makeOpencodeGoProvider(name: string, cfg: OpencodeGoConfig): Usa
       ? undefined
       : async (): Promise<boolean> => {
           if (!workspaceId) return false;
+          const before = readChromeSessionCookie();
+          if (before && await sessionWorks(before, workspaceId)) return true;
           execFile("open", ["-a", "Google Chrome", `https://opencode.ai/console/${workspaceId}/go`]);
           const deadline = Date.now() + 300_000;
+          let probed: string | null = null;
+          let probeCount = 0;
           while (Date.now() < deadline) {
             await new Promise(r => setTimeout(r, 2000));
-            if (readChromeSessionCookie()) return true;
+            const current = readChromeSessionCookie();
+            if (!current || current === before) continue;
+            // Probe a new cookie value at most twice, so a stuck session cannot spin requests.
+            if (current === probed && probeCount >= 2) continue;
+            probeCount = current === probed ? probeCount + 1 : 1;
+            probed = current;
+            if (await sessionWorks(current, workspaceId)) return true;
           }
           return false;
         },

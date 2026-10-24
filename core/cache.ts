@@ -14,6 +14,7 @@ type Subscriber = (e: { key: string; summary: string | null }) => void;
 export class UsageCache {
   private entries = new Map<string, CacheEntry>();
   private inflight = new Map<string, Promise<CacheEntry>>();
+  private generation = new Map<string, number>();
   private subscribers = new Set<Subscriber>();
 
   constructor(private ttlMs = DEFAULT_TTL_MS) {}
@@ -28,13 +29,19 @@ export class UsageCache {
 
   invalidate(key?: string): void {
     if (key) {
-      this.entries.delete(key);
-      this.notify(key, null);
+      this.drop(key);
       return;
     }
-    const keys = [...this.entries.keys()];
-    this.entries.clear();
-    for (const k of keys) this.notify(k, null);
+    const keys = new Set([...this.entries.keys(), ...this.inflight.keys()]);
+    for (const k of keys) this.drop(k);
+  }
+
+  /** Bump the generation so requests started before this point cannot repopulate the cache. */
+  private drop(key: string): void {
+    this.generation.set(key, (this.generation.get(key) ?? 0) + 1);
+    this.inflight.delete(key);
+    this.entries.delete(key);
+    this.notify(key, null);
   }
 
   subscribe(fn: Subscriber): () => void {
@@ -48,10 +55,13 @@ export class UsageCache {
     const hit = this.entries.get(provider.key);
     if (!force && hit && Date.now() - hit.fetchedAt < this.ttlMs) return hit;
 
-    const existing = this.inflight.get(provider.key);
+    const key = provider.key;
+    const existing = this.inflight.get(key);
     if (existing) return existing;
 
-    const job = (async () => {
+    const generation = this.generation.get(key) ?? 0;
+    let job: Promise<CacheEntry>;
+    job = (async () => {
       let report: UsageReport;
       try {
         report = await provider.fetchUsage();
@@ -63,14 +73,16 @@ export class UsageCache {
         summary: shortReport(report, provider),
         fetchedAt: Date.now(),
       };
-      this.entries.set(provider.key, entry);
-      this.notify(provider.key, entry.summary);
+      if ((this.generation.get(key) ?? 0) === generation) {
+        this.entries.set(key, entry);
+        this.notify(key, entry.summary);
+      }
       return entry;
     })().finally(() => {
-      this.inflight.delete(provider.key);
+      if (this.inflight.get(key) === job) this.inflight.delete(key);
     });
 
-    this.inflight.set(provider.key, job);
+    this.inflight.set(key, job);
     return job;
   }
 
