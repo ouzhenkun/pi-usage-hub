@@ -19,6 +19,17 @@
   "bugs": {
     "url": "https://github.com/ouzhenkun/pi-usage-hub/issues"
   },
+  "files": [
+    "index.ts",
+    "core/",
+    "session/",
+    "providers/",
+    "ui/",
+    "utils/",
+    "types.ts",
+    "assets/",
+    "examples/"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=1.2.0",
     "@earendil-works/pi-tui": ">=1.2.0"
